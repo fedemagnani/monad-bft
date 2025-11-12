@@ -84,15 +84,12 @@ impl EthTxPoolForwardingManager {
             ..
         } = self.project();
 
-        if ingress.is_empty() {
-            match ingress_waker.as_mut() {
-                Some(waker) => waker.clone_from(cx.waker()),
-                None => *ingress_waker = Some(cx.waker().clone()),
-            }
-            return Poll::Pending;
+        match ingress_waker {
+            Some(w) if w.will_wake(cx.waker()) => {}
+            _ => *ingress_waker = Some(cx.waker().clone()),
         }
 
-        let Poll::Ready(_) = ingress_timer.poll_tick(cx) else {
+        if ingress_timer.poll_tick(cx).is_pending() || ingress.is_empty() {
             return Poll::Pending;
         };
 
